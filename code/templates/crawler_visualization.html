@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据可视化 - 网易云音乐数据爬取系统</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+    <!-- 加载Chart.js图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    <!-- 加载词云库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqcloud/1.0.4/jqcloud-1.0.4.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqcloud/1.0.4/jqcloud.min.css">
+    <style>
+        body {
+            background-color: #f5f5f5;
+            padding-top: 20px;
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background-color: #e83e8c;
+            color: white;
+            font-weight: bold;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .wordcloud {
+            height: 300px;
+            width: 100%;
+        }
+        .footer {
+            margin-top: 30px;
+            padding: 20px 0;
+            background-color: #343a40;
+            color: white;
+        }
+        .tab-pane {
+            padding: 20px 0;
+        }
+        .data-table {
+            font-size: 0.9rem;
+        }
+        .data-table th {
+            background-color: #f8f9fa;
+        }
+        .nav-tabs .nav-link.active {
+            font-weight: bold;
+            color: #e83e8c;
+            border-color: #e83e8c #dee2e6 #fff;
+        }
+        .nav-tabs .nav-link {
+            color: #495057;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #e83e8c;
+        }
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">网易云音乐爬虫</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">首页</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">控制面板</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">退出登录</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 消息提示 -->
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- 可视化内容 -->
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>数据可视化分析</h2>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> 返回控制面板
+            </a>
+        </div>
+        
+        <!-- 任务信息卡片 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> 任务信息
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-number">{{ task.id }}</div>
+                            <div class="stat-label">任务ID</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-number">{{ task.task_type }}</div>
+                            <div class="stat-label">任务类型</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-number">{{ task.status }}</div>
+                            <div class="stat-label">任务状态</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-number">{{ task.created_at.strftime('%Y-%m-%d') }}</div>
+                            <div class="stat-label">创建时间</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 选项卡导航 -->
+        <ul class="nav nav-tabs" id="visualization-tabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="charts-tab" data-toggle="tab" href="#charts" role="tab" aria-controls="charts" aria-selected="true">
+                    <i class="fas fa-chart-pie"></i> 图表分析
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="data-tab" data-toggle="tab" href="#data" role="tab" aria-controls="data" aria-selected="false">
+                    <i class="fas fa-table"></i> 原始数据
+                </a>
+            </li>
+        </ul>
+        
+        <!-- 选项卡内容 -->
+        <div class="tab-content" id="visualization-tab-content">
+            <!-- 图表分析选项卡 -->
+            <div class="tab-pane fade show active" id="charts" role="tabpanel" aria-labelledby="charts-tab">
+                {% if visualization.type == '歌单分析' %}
+                    <div class="row mt-4">
+                        {% if visualization.chart_data.play_count %}
+                        <!-- 播放量分布图 -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-play-circle"></i> 播放量分布
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="playCountChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if visualization.chart_data.creation_time %}
+                        <!-- 创建时间分布图 -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-calendar-alt"></i> 创建时间分布
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="timeChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    {% if visualization.chart_data.tags %}
+                    <!-- 标签词云 -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-tags"></i> 标签词云
+                                </div>
+                                <div class="card-body">
+                                    <div id="tagCloud" class="wordcloud"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                {% elif visualization.type == '歌曲分析' %}
+                    <div class="row mt-4">
+                        {% if visualization.chart_data.singers %}
+                        <!-- 歌手分布 -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-user-music"></i> 歌手分布
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="singerChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if visualization.chart_data.albums %}
+                        <!-- 专辑分布 -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-compact-disc"></i> 专辑分布
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="albumChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- 原始数据选项卡 -->
+            <div class="tab-pane fade" id="data" role="tabpanel" aria-labelledby="data-tab">
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <i class="fas fa-database"></i> 数据预览 (前20条)
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-bordered data-table">
+                                <thead>
+                                    <tr>
+                                        {% for key in visualization.raw_data[0].keys() %}
+                                        <th>{{ key }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in visualization.raw_data %}
+                                    <tr>
+                                        {% for value in item.values() %}
+                                        <td>{{ value }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="{{ url_for('download_file', filename=task.result_file) }}" class="btn btn-success">
+                                <i class="fas fa-download"></i> 下载完整数据
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container text-center">
+            <p>网易云音乐数据爬取系统 &copy; 2023</p>
+        </div>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    
+    <!-- 图表初始化脚本 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置Chart.js默认配置
+            Chart.defaults.font.family = "'Helvetica Neue', 'Helvetica', 'Arial', sans-serif";
+            Chart.defaults.color = '#666';
+            
+            {% if visualization.type == '歌单分析' %}
+                {% if visualization.chart_data.play_count %}
+                // 播放量分布图
+                var playCountCtx = document.getElementById('playCountChart').getContext('2d');
+                var playCountChart = new Chart(playCountCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: {{ visualization.chart_data.play_count.labels|tojson }},
+                        datasets: [{
+                            label: '歌单数量',
+                            data: {{ visualization.chart_data.play_count.data|tojson }},
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.7)',
+                                'rgba(54, 162, 235, 0.7)',
+                                'rgba(255, 206, 86, 0.7)',
+                                'rgba(75, 192, 192, 0.7)',
+                                'rgba(153, 102, 255, 0.7)',
+                                'rgba(255, 159, 64, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(153, 102, 255, 1)',
+                                'rgba(255, 159, 64, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            title: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + context.parsed.y + ' 个歌单';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: '歌单数量'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: '播放量区间'
+                                }
+                            }
+                        }
+                    }
+                });
+                {% endif %}
+                
+                {% if visualization.chart_data.creation_time %}
+                // 创建时间分布图
+                var timeCtx = document.getElementById('timeChart').getContext('2d');
+                var timeChart = new Chart(timeCtx, {
+                    type: 'line',
+                    data: {
+                        labels: {{ visualization.chart_data.creation_time.labels|tojson }},
+                        datasets: [{
+                            label: '歌单数量',
+                            data: {{ visualization.chart_data.creation_time.data|tojson }},
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            title: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: '歌单数量'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: '创建年份'
+                                }
+                            }
+                        }
+                    }
+                });
+                {% endif %}
+                
+                {% if visualization.chart_data.tags %}
+                // 标签词云
+                $(function() {
+                    $("#tagCloud").jQCloud({{ visualization.chart_data.tags.words|tojson }}, {
+                        width: $('#tagCloud').width(),
+                        height: 300,
+                        colors: ["#e83e8c", "#6f42c1", "#fd7e14", "#20c997", "#17a2b8", "#6c757d"],
+                        fontSize: {
+                            from: 0.1,
+                            to: 0.02
+                        }
+                    });
+                });
+                {% endif %}
+                
+            {% elif visualization.type == '歌曲分析' %}
+                {% if visualization.chart_data.singers %}
+                // 歌手分布图
+                var singerCtx = document.getElementById('singerChart').getContext('2d');
+                var singerChart = new Chart(singerCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: {{ visualization.chart_data.singers.labels|tojson }},
+                        datasets: [{
+                            data: {{ visualization.chart_data.singers.data|tojson }},
+                            backgroundColor: [
+                                'rgba(255, 99, 132, 0.7)',
+                                'rgba(54, 162, 235, 0.7)',
+                                'rgba(255, 206, 86, 0.7)',
+                                'rgba(75, 192, 192, 0.7)',
+                                'rgba(153, 102, 255, 0.7)',
+                                'rgba(255, 159, 64, 0.7)',
+                                'rgba(201, 203, 207, 0.7)',
+                                'rgba(255, 99, 71, 0.7)',
+                                'rgba(0, 139, 139, 0.7)',
+                                'rgba(138, 43, 226, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(153, 102, 255, 1)',
+                                'rgba(255, 159, 64, 1)',
+                                'rgba(201, 203, 207, 1)',
+                                'rgba(255, 99, 71, 1)',
+                                'rgba(0, 139, 139, 1)',
+                                'rgba(138, 43, 226, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    boxWidth: 12
+                                }
+                            },
+                            title: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        var label = context.label || '';
+                                        var value = context.parsed || 0;
+                                        var total = context.dataset.data.reduce(function(a, b) {
+                                            return a + b;
+                                        }, 0);
+                                        var percentage = value / total * 100;
+                                        return label + ': ' + value + ' 首 (' + percentage.toFixed(1) + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                {% endif %}
+                
+                {% if visualization.chart_data.albums %}
+                // 专辑分布图
+                var albumCtx = document.getElementById('albumChart').getContext('2d');
+                var albumChart = new Chart(albumCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: {{ visualization.chart_data.albums.labels|tojson }},
+                        datasets: [{
+                            data: {{ visualization.chart_data.albums.data|tojson }},
+                            backgroundColor: [
+                                'rgba(54, 162, 235, 0.7)',
+                                'rgba(255, 206, 86, 0.7)',
+                                'rgba(75, 192, 192, 0.7)',
+                                'rgba(153, 102, 255, 0.7)',
+                                'rgba(255, 159, 64, 0.7)',
+                                'rgba(255, 99, 132, 0.7)',
+                                'rgba(201, 203, 207, 0.7)',
+                                'rgba(255, 99, 71, 0.7)',
+                                'rgba(0, 139, 139, 0.7)',
+                                'rgba(138, 43, 226, 0.7)'
+                            ],
+                            borderColor: [
+                                'rgba(54, 162, 235, 1)',
+                                'rgba(255, 206, 86, 1)',
+                                'rgba(75, 192, 192, 1)',
+                                'rgba(153, 102, 255, 1)',
+                                'rgba(255, 159, 64, 1)',
+                                'rgba(255, 99, 132, 1)',
+                                'rgba(201, 203, 207, 1)',
+                                'rgba(255, 99, 71, 1)',
+                                'rgba(0, 139, 139, 1)',
+                                'rgba(138, 43, 226, 1)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: {
+                                    boxWidth: 12,
+                                    font: {
+                                        size: 11
+                                    }
+                                }
+                            },
+                            title: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        var label = context.label || '';
+                                        var value = context.parsed || 0;
+                                        var total = context.dataset.data.reduce(function(a, b) {
+                                            return a + b;
+                                        }, 0);
+                                        var percentage = value / total * 100;
+                                        return label + ': ' + value + ' 首 (' + percentage.toFixed(1) + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                {% endif %}
+            {% endif %}
+        });
+    </script>
+</body>
+</html> 

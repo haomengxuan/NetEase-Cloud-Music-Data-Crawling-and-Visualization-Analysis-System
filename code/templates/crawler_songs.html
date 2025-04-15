@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>爬取歌曲 - 网易云音乐数据爬取系统</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+    <style>
+        body {
+            background-color: #f5f5f5;
+            padding-top: 20px;
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background-color: #e83e8c;
+            color: white;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 30px;
+            padding: 20px 0;
+            background-color: #343a40;
+            color: white;
+        }
+        .crawler-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #17a2b8;
+            border-radius: 3px;
+        }
+        .example-artist {
+            margin-top: 10px;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">网易云音乐爬虫</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">首页</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">控制面板</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">退出登录</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 消息提示 -->
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- 页面内容 -->
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2><i class="fas fa-headphones"></i> 爬取歌曲信息</h2>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> 返回控制面板
+            </a>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-cogs"></i> 爬取设置
+                    </div>
+                    <div class="card-body">
+                        <form action="{{ url_for('integrated_crawl_songs') }}" method="POST" class="mt-3">
+                            <div class="form-group">
+                                <label for="artist_id">歌手ID</label>
+                                <input type="text" class="form-control" id="artist_id" name="artist_id" required placeholder="请输入歌手ID，如：6452">
+                                <small class="form-text text-muted">输入歌手的网易云音乐ID，将爬取该歌手的热门歌曲</small>
+                                
+                                <div class="example-artist">
+                                    <p><strong>如何获取歌手ID？</strong></p>
+                                    <p>1. 打开网易云音乐网页版，搜索并进入歌手页面</p>
+                                    <p>2. 查看页面URL，例如：https://music.163.com/#/artist?id=6452</p>
+                                    <p>3. 其中 "id=6452" 部分的 "6452" 就是歌手ID</p>
+                                    <p>示例歌手ID：</p>
+                                    <ul>
+                                        <li>周杰伦：6452</li>
+                                        <li>林俊杰：3684</li>
+                                        <li>Taylor Swift：830</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fas fa-search"></i> 开始爬取
+                                </button>
+                                <small class="form-text text-muted mt-2">
+                                    <i class="fas fa-info-circle"></i> 爬取完成后，系统将自动显示任务结果及数据分析页面。您可以查看数据可视化分析或下载原始数据。
+                                </small>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="crawler-info">
+                    <h5><i class="fas fa-info-circle"></i> 爬取说明</h5>
+                    <ul>
+                        <li>爬取过程中，系统会自动限制请求频率，避免被目标网站封禁</li>
+                        <li>将获取歌手的热门歌曲，包括歌曲名称、专辑、播放链接等信息</li>
+                        <li>爬取结果将自动保存为CSV文件，可在任务完成后下载</li>
+                        <li>爬取时间与歌曲数量和网络状况有关，请耐心等待</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-info-circle"></i> 操作指南
+                    </div>
+                    <div class="card-body">
+                        <h5>爬取步骤</h5>
+                        <ol>
+                            <li>输入要爬取的歌手ID</li>
+                            <li>点击"开始爬取"按钮</li>
+                            <li>等待爬取任务完成</li>
+                            <li>在控制面板下载结果数据</li>
+                        </ol>
+                        
+                        <div class="alert alert-warning">
+                            <h6><i class="fas fa-exclamation-triangle"></i> 注意事项</h6>
+                            <p class="mb-0">短时间内爬取多个歌手的数据可能导致请求被限制，建议间隔一段时间再爬取</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container text-center">
+            <p>网易云音乐数据爬取系统 &copy; 2023</p>
+        </div>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html> 

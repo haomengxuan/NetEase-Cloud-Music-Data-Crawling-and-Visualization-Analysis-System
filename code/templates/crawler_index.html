@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网易云音乐数据爬取系统</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f5f5f5;
+            padding-top: 20px;
+        }
+        .jumbotron {
+            background-color: #e83e8c;
+            color: white;
+        }
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #e83e8c;
+        }
+        .card {
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .footer {
+            margin-top: 30px;
+            padding: 20px 0;
+            background-color: #343a40;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">网易云音乐爬虫</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item active">
+                        <a class="nav-link" href="{{ url_for('index') }}">首页</a>
+                    </li>
+                    {% if 'user_id' in session %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">控制面板</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">退出登录</a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('login') }}">登录</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('register') }}">注册</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 消息提示 -->
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- 主要内容 -->
+    <div class="jumbotron">
+        <div class="container">
+            <h1 class="display-4">网易云音乐数据爬取系统</h1>
+            <p class="lead">一个专门用于爬取网易云音乐数据的工具，支持歌单和歌曲信息的爬取</p>
+            {% if 'user_id' not in session %}
+            <p>
+                <a class="btn btn-light btn-lg" href="{{ url_for('login') }}" role="button">登录系统</a>
+                <a class="btn btn-outline-light btn-lg" href="{{ url_for('register') }}" role="button">注册账号</a>
+            </p>
+            {% else %}
+            <p>
+                <a class="btn btn-light btn-lg" href="{{ url_for('dashboard') }}" role="button">进入控制面板</a>
+            </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="feature-icon">📊</div>
+                        <h5 class="card-title">歌单数据爬取</h5>
+                        <p class="card-text">支持按类型爬取热门歌单信息，包含播放量、收藏量等数据</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="feature-icon">🎵</div>
+                        <h5 class="card-title">歌曲信息爬取</h5>
+                        <p class="card-text">支持根据歌手ID爬取其所有热门歌曲信息</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="feature-icon">📁</div>
+                        <h5 class="card-title">数据导出</h5>
+                        <p class="card-text">支持将爬取的数据导出为CSV格式，方便后续分析处理</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-5">
+            <h3>使用须知</h3>
+            <div class="alert alert-info">
+                <h5>爬虫使用安全声明</h5>
+                <ul>
+                    <li>本工具仅供学习和研究使用，请勿用于商业用途</li>
+                    <li>请遵守网易云音乐的使用条款和相关法律法规</li>
+                    <li>爬取频率已经过限制，以避免对目标网站造成压力</li>
+                    <li>爬取的内容可能受版权保护，请合法使用</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container text-center">
+            <p>网易云音乐数据爬取系统 &copy; 2023</p>
+        </div>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html> 

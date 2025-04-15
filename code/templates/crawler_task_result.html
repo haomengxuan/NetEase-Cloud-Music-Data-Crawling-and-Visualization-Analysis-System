@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务结果 - 网易云音乐数据爬取系统</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+    <style>
+        body {
+            background-color: #f5f5f5;
+            padding-top: 20px;
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background-color: #e83e8c;
+            color: white;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 30px;
+            padding: 20px 0;
+            background-color: #343a40;
+            color: white;
+        }
+        .result-icon {
+            font-size: 5rem;
+            color: #28a745;
+            margin-bottom: 20px;
+        }
+        .result-message {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+        }
+        .action-btn {
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">网易云音乐爬虫</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">首页</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">控制面板</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">退出登录</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 消息提示 -->
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- 内容 -->
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-tasks"></i> 爬取任务结果
+            </div>
+            <div class="card-body text-center">
+                {% if task.status == '完成' %}
+                    <div class="result-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="result-message text-success">
+                        任务已成功完成！
+                    </div>
+                    <div class="task-info mb-4">
+                        <p><strong>任务类型:</strong> {{ task.task_type }}</p>
+                        <p><strong>创建时间:</strong> {{ task.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                        {% if task.task_type == '歌单爬取' %}
+                            {% set params = task.params|tojson|from_json %}
+                            <p><strong>爬取类型:</strong> {{ params.playlist_type or '全部' }}</p>
+                            <p><strong>爬取数量:</strong> {{ params.limit }}</p>
+                        {% elif task.task_type == '歌曲爬取' %}
+                            {% set params = task.params|tojson|from_json %}
+                            <p><strong>歌手ID:</strong> {{ params.artist_id }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="action-buttons">
+                        <a href="{{ url_for('data_visualization', task_id=task.id) }}" class="btn btn-primary btn-lg action-btn">
+                            <i class="fas fa-chart-bar"></i> 查看数据分析
+                        </a>
+                        <a href="{{ url_for('download_file', filename=task.result_file) }}" class="btn btn-success btn-lg action-btn">
+                            <i class="fas fa-download"></i> 下载数据
+                        </a>
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-lg action-btn">
+                            <i class="fas fa-home"></i> 返回控制面板
+                        </a>
+                    </div>
+                {% elif task.status == '失败' %}
+                    <div class="result-icon text-danger">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="result-message text-danger">
+                        任务执行失败！
+                    </div>
+                    <div class="task-info mb-4">
+                        <p><strong>任务类型:</strong> {{ task.task_type }}</p>
+                        <p><strong>创建时间:</strong> {{ task.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                    </div>
+                    <div class="action-buttons">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-lg action-btn">
+                            <i class="fas fa-home"></i> 返回控制面板
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="result-icon text-warning">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                    <div class="result-message text-warning">
+                        任务正在进行中...
+                    </div>
+                    <div class="task-info mb-4">
+                        <p><strong>任务类型:</strong> {{ task.task_type }}</p>
+                        <p><strong>创建时间:</strong> {{ task.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                    </div>
+                    <div class="action-buttons">
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-lg action-btn">
+                            <i class="fas fa-home"></i> 返回控制面板
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container text-center">
+            <p>网易云音乐数据爬取系统 &copy; 2023</p>
+        </div>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    
+    {% if task.status == '进行中' %}
+    <script>
+        // 5秒自动刷新，检查任务状态
+        setTimeout(function() {
+            window.location.reload();
+        }, 5000);
+    </script>
+    {% endif %}
+</body>
+</html> 
